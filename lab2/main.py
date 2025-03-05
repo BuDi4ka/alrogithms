@@ -1,105 +1,130 @@
+import tkinter as tk
 import time
 import random
+import math
 import matplotlib.pyplot as plt
-import numpy as np
-import tkinter as tk
-from tkinter import filedialog, messagebox
+import tkinter.filedialog as fd
 
 
-def boz_nelson_sort(arr):
-    if len(arr) <= 1:
-        return arr
-    mid = len(arr) // 2
-    left = boz_nelson_sort(arr[:mid])
-    right = boz_nelson_sort(arr[mid:])
-    return merge(left, right)
+def bose_nelson_sort(arr):
+    ops = 0  # Лічильник операцій
+
+    def merge(j, r, m):
+        nonlocal ops
+        if j + r < len(arr):
+            ops += 1
+            if m == 1:
+                ops += 1
+                if arr[j] > arr[j + r]:
+                    arr[j], arr[j + r] = arr[j + r], arr[j]
+                    ops += 1
+            else:
+                m = m // 2
+                ops += 1
+                merge(j, r, m)
+                if j + r + m < len(arr):
+                    merge(j + m, r, m)
+                merge(j + m, r - m, m)
+
+    m = 1
+    while m < len(arr):
+        j = 0
+        while j + m < len(arr):
+            merge(j, m, m)
+            j += 2 * m
+            ops += 1
+        m *= 2
+        ops += 1
+
+    return ops
 
 
-def merge(left, right):
-    result = []
-    i = j = 0
-    while i < len(left) and j < len(right):
-        if left[i] < right[j]:
-            result.append(left[i])
-            i += 1
-        else:
-            result.append(right[j])
-            j += 1
-    result.extend(left[i:])
-    result.extend(right[j:])
-    return result
+def run_experiment():
+    arr_sizes = [1000 * i for i in range(1, 11)]
+    times_measured = []
+    ops_measured = []
 
+    for size in arr_sizes:
+        arr = [random.randint(0, 100000) for _ in range(size)]
+        arr_copy = arr[:]
+        start_time = time.perf_counter()
+        ops = bose_nelson_sort(arr_copy)
+        end_time = time.perf_counter()
+        elapsed = end_time - start_time
+        times_measured.append(elapsed)
+        ops_measured.append(ops)
+        print(f"Розмір: {size:5d} елементів, час: {elapsed:.6f} сек, операцій: {ops}")
 
-def measure_time(sort_function, arr):
-    start_time = time.perf_counter()
-    sort_function(arr)
-    end_time = time.perf_counter()
-    return end_time - start_time
+    theory = [size * math.log(size) for size in arr_sizes]
+    max_theory = max(theory)
+    max_time = max(times_measured)
+    max_ops = max(ops_measured)
 
+    theory_time = [val / max_theory * max_time for val in theory]
+    theory_ops = [val / max_theory * max_ops for val in theory]
 
-def generate_test_data(sizes):
-    return [random.choices(range(1, 10000), k=size) for size in sizes]
-
-
-def run_sort():
-    input_data = entry.get()
-    try:
-        arr = list(map(int, input_data.split()))
-        sorted_arr = boz_nelson_sort(arr)
-        result_label.config(text=f"Відсортований масив: {sorted_arr}")
-    except ValueError:
-        messagebox.showerror("Помилка", "Некоректний ввід даних")
-
-
-def load_from_file():
-    filename = filedialog.askopenfilename(filetypes=[("Text files", "*.txt")])
-    if filename:
-        try:
-            with open(filename, 'r') as file:
-                arr = list(map(int, file.read().split()))
-            sorted_arr = boz_nelson_sort(arr)
-            result_label.config(text=f"Відсортований масив: {sorted_arr}")
-        except Exception as e:
-            messagebox.showerror("Помилка", f"Помилка при зчитуванні файлу: {e}")
-
-
-def plot_graph():
-    sizes = [100, 200, 500, 1000, 2000, 3000, 4000, 5000, 7000, 10000]
-    test_data = generate_test_data(sizes)
-    time_results = [measure_time(boz_nelson_sort, arr) for arr in test_data]
-    theoretical_complexity = [size * np.log2(size) for size in sizes]
-
-    plt.figure(figsize=(10, 5))
-    plt.plot(sizes, time_results, marker='o', label='Час виконання')
-    plt.plot(sizes, np.array(theoretical_complexity) / max(theoretical_complexity) * max(time_results), '--',
-             label='Теоретична складність')
-    plt.xlabel('Розмір масиву')
-    plt.ylabel('Час (секунди)')
-    plt.title('Порівняння часової складності та теоретичної складності')
+    plt.figure("Час сортування")
+    plt.plot(arr_sizes, times_measured, label="Експериментальний час", marker='o')
+    plt.plot(arr_sizes, theory_time, label="Теоретична O(n log n) (масштабована)", marker='x')
+    plt.xlabel("Розмір масиву")
+    plt.ylabel("Час (сек)")
+    plt.title("Залежність часу сортування від розміру масиву")
     plt.legend()
-    plt.grid()
+    plt.grid(True)
+
+    plt.figure("Кількість операцій")
+    plt.plot(arr_sizes, ops_measured, label="Експериментальна кількість операцій", marker='o')
+    plt.plot(arr_sizes, theory_ops, label="Теоретична O(n log n) (масштабована)", marker='x')
+    plt.xlabel("Розмір масиву")
+    plt.ylabel("Кількість операцій")
+    plt.title("Залежність кількості операцій від розміру масиву")
+    plt.legend()
+    plt.grid(True)
+
     plt.show()
 
 
-# Створення GUI
+def get_array_from_keyboard():
+    try:
+        user_input = entry_input.get()
+        arr = list(map(int, user_input.split()))
+        output_label.config(text=f"Введений масив: {arr}")
+        sorted_arr = arr[:]
+        bose_nelson_sort(sorted_arr)
+        output_label.config(text=f"Відсортований масив: {sorted_arr}")
+    except ValueError:
+        output_label.config(text="Некоректний ввід! Введіть числа через пробіл.")
+
+
+def get_array_from_file():
+    file_path = fd.askopenfilename(filetypes=[("Текстові файли", "*.txt")])
+    if file_path:
+        try:
+            with open(file_path, "r") as file:
+                arr = list(map(int, file.read().split()))
+            output_label.config(text=f"Завантажений масив: {arr}")
+            sorted_arr = arr[:]
+            bose_nelson_sort(sorted_arr)
+            output_label.config(text=f"Відсортований масив: {sorted_arr}")
+        except ValueError:
+            output_label.config(text="Файл містить некоректні дані!")
+
+
+# GUI
 root = tk.Tk()
-root.title("Сортування Боуза-Нельсона")
-root.geometry("600x400")
+root.title("Сортування Бозе-Нельсона")
 
-tk.Label(root, text="Введіть масив чисел (через пробіл):").pack(pady=5)
-entry = tk.Entry(root, width=50)
-entry.pack(pady=5)
+tk.Label(root, text="Лабораторна робота: Сортування Бозе-Нельсона", font=("Arial", 14)).pack(pady=10)
 
-sort_button = tk.Button(root, text="Відсортувати", command=run_sort)
-sort_button.pack(pady=5)
+tk.Label(root, text="Введіть масив чисел через пробіл:").pack()
+entry_input = tk.Entry(root, width=50)
+entry_input.pack()
 
-file_button = tk.Button(root, text="Завантажити з файлу", command=load_from_file)
-file_button.pack(pady=5)
+tk.Button(root, text="Ввести масив вручну", command=get_array_from_keyboard).pack(pady=5)
+tk.Button(root, text="Завантажити масив з файлу", command=get_array_from_file).pack(pady=5)
+tk.Button(root, text="Запустити експеримент", command=run_experiment).pack(pady=10)
 
-graph_button = tk.Button(root, text="Побудувати графік", command=plot_graph)
-graph_button.pack(pady=5)
-
-result_label = tk.Label(root, text="")
-result_label.pack(pady=5)
+output_label = tk.Label(root, text="")
+output_label.pack(pady=10)
 
 root.mainloop()

@@ -1,115 +1,101 @@
 import tkinter as tk
 from tkinter import messagebox
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-def gauss_seidel_custom(eps=1e-5, max_iterations=50000):
-    x = y = z = 0
-    errors = []
-    
-    for iteration in range(max_iterations):
-        x_new = (4 - y - z)
-        y_new = (9 - 2*x_new - z) / 3
-        z_new = (-2 - x_new + y_new) * -1
+# Функція для розв'язання системи рівнянь методом Гауса-Зейделя
+def gauss_seidel(A, b, epsilon, max_iter):
+    n = len(A)
+    x = [0.0] * n  # Початкові значення розв'язків
+    for k in range(max_iter):
+        x_new = x[:]
+        for i in range(n):
+            sum1 = sum(A[i][j] * x_new[j] for j in range(i))  # Від суми лівої частини
+            sum2 = sum(A[i][j] * x[j] for j in range(i + 1, n))  # Від суми правої частини
+            x_new[i] = (b[i] - sum1 - sum2) / A[i][i]
+        # Перевірка на точність
+        if all(abs(x_new[i] - x[i]) < epsilon for i in range(n)):
+            return x_new, k + 1  # Повертаємо розв'язок і кількість ітерацій
+        x = x_new
+    return x, max_iter  # Якщо кількість ітерацій досягла max_iter
 
-        error = max(abs(x - x_new), abs(y - y_new), abs(z - z_new))
-        errors.append(error)
-
-        if error < eps:
-            return [round(x_new, 6), round(y_new, 6), round(z_new, 6)], iteration + 1, errors
-
-        x, y, z = x_new, y_new, z_new
-
-    raise Exception("Метод не збігся — перевищено максимальну кількість ітерацій.")
-
-
-def plot_convergence(errors):
-    fig = plt.Figure(figsize=(5, 3), dpi=100)
-    ax = fig.add_subplot(111)
-    ax.plot(errors, marker='o', color='blue')
-    ax.set_title("Збіжність методу")
-    ax.set_xlabel("Ітерація")
-    ax.set_ylabel("Похибка")
-    ax.grid(True)
-    return fig
-
-def solve():
+# Функція для обробки введених значень
+def solve_system():
     try:
-        result, iterations, errors = gauss_seidel_custom()
+        # Зчитуємо введені значення
+        epsilon = float(epsilon_entry.get())
+        max_iter = int(iterations_entry.get())
+        A = []
+        b = []
+        
+        # Вводимо матрицю коефіцієнтів
+        for i in range(3):
+            row = list(map(float, matrix_entries[i].get().split()))
+            A.append(row)
+        
+        # Вводимо вектор вільних членів
+        for i in range(3):
+            b.append(float(b_entries[i].get()))
+        
+        # Перевірка на правильність введених значень
+        if len(A) != 3 or len(A[0]) != 3 or len(b) != 3:
+            raise ValueError("Матриця має бути 3x3 і вектор вільних членів має бути довжини 3.")
 
-        for i, val in enumerate(result):
-            result_labels[i].config(text=f"x{i+1} = {val}")
-
-        iter_label.config(text=f"Кількість ітерацій: {iterations}")
-
-        for widget in plot_frame.winfo_children():
-            widget.destroy()
-
-        fig = plot_convergence(errors)
-        canvas = FigureCanvasTkAgg(fig, master=plot_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack()
-
+        # Викликаємо метод Гауса-Зейделя
+        result, iterations = gauss_seidel(A, b, epsilon, max_iter)
+        
+        # Виведення результату
+        result_label.config(text=f"Розв'язок: x1 = {result[0]}, x2 = {result[1]}, x3 = {result[2]}")
+        iterations_label.config(text=f"Кількість ітерацій: {iterations}")
+    
     except Exception as e:
-        messagebox.showerror("Помилка", str(e))
+        messagebox.showerror("Помилка", f"Сталася помилка: {e}")
 
-
-
-# ---------- Інтерфейс ----------
+# Створення вікна
 root = tk.Tk()
-root.title("Метод Гауса-Зейделя — Варіант 4")
-root.geometry("700x650")
-root.configure(bg="#f5f5f5", padx=20, pady=20)
+root.title("Метод Гауса-Зейделя")
 
-input_frame = tk.Frame(root, bg="#f5f5f5")
-input_frame.pack(pady=10)
+# Параметри GUI
+frame = tk.Frame(root)
+frame.pack(padx=10, pady=10)
 
-tk.Label(input_frame, text="Матриця коефіцієнтів A і вектор B:", font=("Arial", 12, "bold"), bg="#f5f5f5").grid(row=0, column=0, columnspan=4, pady=(0, 10))
-
-entries = []
-free_entries = []
-
-# Переставлена система для забезпечення збіжності
-default_A = [
-    [2, 3, 1],
-    [1, -1, -1],
-    [1, 1, 1]
-]
-default_b = [9, -2, 4]
-
+# Ввід матриці коефіцієнтів
+tk.Label(frame, text="Введіть матрицю коефіцієнтів (3x3):").grid(row=0, columnspan=2)
+matrix_entries = []
 for i in range(3):
-    row_entries = []
-    for j in range(3):
-        entry = tk.Entry(input_frame, width=6, font=("Courier", 11), justify="center")
-        entry.grid(row=i+1, column=j, padx=4, pady=2)
-        entry.insert(0, str(default_A[i][j]))
-        row_entries.append(entry)
-    entries.append(row_entries)
+    tk.Label(frame, text=f"Рядок {i+1}:").grid(row=i+1, column=0)
+    entry = tk.Entry(frame, width=20)
+    entry.grid(row=i+1, column=1)
+    matrix_entries.append(entry)
 
-    b_entry = tk.Entry(input_frame, width=6, font=("Courier", 11), justify="center")
-    b_entry.grid(row=i+1, column=3, padx=10)
-    b_entry.insert(0, str(default_b[i]))
-    free_entries.append(b_entry)
-
-for j, text in enumerate(["a₁", "a₂", "a₃", "b"]):
-    tk.Label(input_frame, text=text, font=("Arial", 10, "bold"), bg="#f5f5f5").grid(row=0, column=j)
-
-tk.Button(root, text="Розв’язати", command=solve, font=("Arial", 12, "bold"), bg="#90ee90", width=20).pack(pady=15)
-
-result_frame = tk.Frame(root, bg="#f5f5f5")
-result_frame.pack(pady=5)
-
-result_labels = []
+# Ввід вектора вільних членів
+tk.Label(frame, text="Введіть вектор вільних членів:").grid(row=4, columnspan=2)
+b_entries = []
 for i in range(3):
-    lbl = tk.Label(result_frame, text=f"x{i+1} =", font=("Arial", 11), bg="#f5f5f5")
-    lbl.pack()
-    result_labels.append(lbl)
+    tk.Label(frame, text=f"b{i+1}:").grid(row=i+5, column=0)
+    entry = tk.Entry(frame, width=20)
+    entry.grid(row=i+5, column=1)
+    b_entries.append(entry)
 
-iter_label = tk.Label(result_frame, text="", font=("Arial", 11, "italic"), bg="#f5f5f5", pady=5)
-iter_label.pack()
+# Ввід параметрів похибки та кількості ітерацій
+tk.Label(frame, text="Параметри:").grid(row=8, columnspan=2)
 
-plot_frame = tk.Frame(root, bg="#f5f5f5")
-plot_frame.pack(pady=10)
+tk.Label(frame, text="Похибка (ε):").grid(row=9, column=0)
+epsilon_entry = tk.Entry(frame, width=20)
+epsilon_entry.grid(row=9, column=1)
 
+tk.Label(frame, text="Макс. ітерацій:").grid(row=10, column=0)
+iterations_entry = tk.Entry(frame, width=20)
+iterations_entry.grid(row=10, column=1)
+
+# Кнопка для запуску розв'язку
+solve_button = tk.Button(frame, text="Розв'язати", command=solve_system)
+solve_button.grid(row=11, columnspan=2)
+
+# Місце для результатів
+result_label = tk.Label(frame, text="Розв'язок:")
+result_label.grid(row=12, columnspan=2)
+
+iterations_label = tk.Label(frame, text="Кількість ітерацій:")
+iterations_label.grid(row=13, columnspan=2)
+
+# Запуск GUI
 root.mainloop()

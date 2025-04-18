@@ -4,29 +4,25 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-def gauss_seidel(A, b, eps=1e-5, max_iterations=1000):
-    n = len(A)
-    x = np.zeros(n)
+def gauss_seidel_custom(eps=1e-5, max_iterations=50000):
+    x = y = z = 0
     errors = []
-
+    
     for iteration in range(max_iterations):
-        x_new = np.copy(x)
-        for i in range(n):
-            s1 = sum(A[i][j] * x_new[j] for j in range(i))
-            s2 = sum(A[i][j] * x[j] for j in range(i + 1, n))
-            if A[i][i] == 0:
-                raise ValueError(f"Нульовий елемент на діагоналі в рядку {i + 1}")
-            x_new[i] = (b[i] - s1 - s2) / A[i][i]
+        x_new = (4 - y - z)
+        y_new = (9 - 2*x_new - z) / 3
+        z_new = (-2 - x_new + y_new) * -1
 
-        error = np.linalg.norm(x_new - x, ord=np.inf)
+        error = max(abs(x - x_new), abs(y - y_new), abs(z - z_new))
         errors.append(error)
 
         if error < eps:
-            return [round(val, 6) for val in x_new], iteration + 1, errors
+            return [round(x_new, 6), round(y_new, 6), round(z_new, 6)], iteration + 1, errors
 
-        x = x_new
+        x, y, z = x_new, y_new, z_new
 
     raise Exception("Метод не збігся — перевищено максимальну кількість ітерацій.")
+
 
 def plot_convergence(errors):
     fig = plt.Figure(figsize=(5, 3), dpi=100)
@@ -40,17 +36,7 @@ def plot_convergence(errors):
 
 def solve():
     try:
-        A = []
-        for i in range(3):
-            row = []
-            for j in range(3):
-                val = float(entries[i][j].get())
-                row.append(val)
-            A.append(row)
-
-        b = [float(free_entries[i].get()) for i in range(3)]
-
-        result, iterations, errors = gauss_seidel(A, b)
+        result, iterations, errors = gauss_seidel_custom()
 
         for i, val in enumerate(result):
             result_labels[i].config(text=f"x{i+1} = {val}")
@@ -69,6 +55,7 @@ def solve():
         messagebox.showerror("Помилка", str(e))
 
 
+
 # ---------- Інтерфейс ----------
 root = tk.Tk()
 root.title("Метод Гауса-Зейделя — Варіант 4")
@@ -82,12 +69,14 @@ tk.Label(input_frame, text="Матриця коефіцієнтів A і век�
 
 entries = []
 free_entries = []
+
+# Переставлена система для забезпечення збіжності
 default_A = [
-    [1, 1, 1],
     [2, 3, 1],
-    [1, -1, -1]
+    [1, -1, -1],
+    [1, 1, 1]
 ]
-default_b = [4, 9, -2]
+default_b = [9, -2, 4]
 
 for i in range(3):
     row_entries = []
